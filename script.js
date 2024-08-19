@@ -1,11 +1,17 @@
 // Initialize Airtable
-const base = new Airtable({apiKey: process.env.AIRTABLE_API_KEY}).base(app03xjCFcTcaBqsB);
+const base = new Airtable({apiKey: process.env.AIRTABLE_ACCESS_TOKEN}).base(process.env.AIRTABLE_BASE_ID);
+
 // Function to submit a new post
 function submitPost(event) {
     event.preventDefault();
     
     const text = document.getElementById('post-text').value;
     const imageFile = document.getElementById('post-image').files[0];
+
+    if (!imageFile) {
+        console.error('No image file selected');
+        return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = function() {
@@ -26,10 +32,10 @@ function submitPost(event) {
             }
         ], function(err, records) {
             if (err) {
-                console.error(err);
+                console.error('Error creating Airtable record:', err);
                 return;
             }
-            console.log("Post created");
+            console.log("Post created:", records[0].getId());
             document.getElementById('post-form').reset();
             fetchPosts();
         });
@@ -49,12 +55,17 @@ function fetchPosts() {
             const post = document.createElement('div');
             post.className = 'post';
 
-            const img = document.createElement('img');
-            img.src = record.get('Image')[0].url;
-            post.appendChild(img);
+            const imgUrl = record.get('Image');
+            if (imgUrl && imgUrl[0] && imgUrl[0].url) {
+                const img = document.createElement('img');
+                img.src = imgUrl[0].url;
+                post.appendChild(img);
+            } else {
+                console.warn('No image URL found for record:', record.getId());
+            }
 
             const p = document.createElement('p');
-            p.textContent = record.get('Text');
+            p.textContent = record.get('Text') || 'No text provided';
             post.appendChild(p);
 
             postsContainer.appendChild(post);
@@ -62,10 +73,20 @@ function fetchPosts() {
 
         fetchNextPage();
     }, function done(err) {
-        if (err) { console.error(err); return; }
+        if (err) { 
+            console.error('Error fetching records:', err); 
+            return; 
+        }
+        console.log('Finished loading posts');
     });
 }
 
 // Event listeners
 document.getElementById('post-form').addEventListener('submit', submitPost);
 document.addEventListener('DOMContentLoaded', fetchPosts);
+
+// Initial fetch of posts
+fetchPosts();
+
+// Log to confirm script is running
+console.log('Script loaded and running');
